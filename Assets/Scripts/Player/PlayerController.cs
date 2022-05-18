@@ -6,6 +6,8 @@ using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(Rigidbody2D))]
 public class PlayerController : MonoBehaviour {
+	[SerializeField] private AudioSource _sfxAudioSource;
+	[SerializeField] private AudioSource _footstepsAudioSource;
 	[SerializeField] private float _speed = 250f;
 	[SerializeField] private float _dashMultiplier = 10f;
 	[SerializeField] private float _dashDuration = .05f;
@@ -16,7 +18,25 @@ public class PlayerController : MonoBehaviour {
 	private Vector2 _moveInput;
 	private bool _canMove = true;
 	private bool _canDash = true;
+	private bool _startedDash = false;
+	private bool _playerDashed = false;
 	private float _dashSpeed = 1f;
+
+	private AudioClip _footstepsSound; 
+	private AudioClip _dashSound;
+	private AudioClip _damageSound;
+
+	private void OnEnable() {
+		AudioManager.OnDefineSoundPlayerFootsteps += (sound) => AudioManager.ChangeSound(out _footstepsSound, sound);
+		AudioManager.OnDefineSoundPlayerDash += (sound) => AudioManager.ChangeSound(out _dashSound, sound);
+		AudioManager.OnDefineSoundPlayerTookDamage += (sound) => AudioManager.ChangeSound(out _damageSound, sound);
+	}
+
+	private void OnDisable() {
+		AudioManager.OnDefineSoundPlayerFootsteps -= (sound) => AudioManager.ChangeSound(out _footstepsSound, sound);
+		AudioManager.OnDefineSoundPlayerDash -= (sound) => AudioManager.ChangeSound(out _dashSound, sound);
+		AudioManager.OnDefineSoundPlayerTookDamage -= (sound) => AudioManager.ChangeSound(out _damageSound, sound);
+	}
 
 	private void Start() {
 		_rigidbody = GetComponent<Rigidbody2D>();
@@ -26,11 +46,26 @@ public class PlayerController : MonoBehaviour {
 	private void FixedUpdate() {
 		if (_canMove)
 			_rigidbody.velocity = _moveInput * _speed * _dashSpeed * Time.fixedDeltaTime;
+
+		if (_startedDash) {
+			_playerDashed = _moveInput != Vector2.zero && _dashSpeed != 1f;
+			_startedDash = false;
+		}
 	}
 
 	private void Update() {
 		if (!_canMove)
 			StartCoroutine(WaitThen(1f, ResumeMovement));
+
+		if (_playerDashed) {
+			AudioManager.PlaySoundOnce(_sfxAudioSource, _dashSound);
+			_playerDashed = false;
+		}
+	}
+
+	private void OnCollisionEnter2D(Collision2D collision) {
+		if (collision.gameObject.CompareTag("Bullet"))
+			AudioManager.PlaySoundOnce(_sfxAudioSource, _damageSound);
 	}
 
 	public void StopMovement() => _canMove = false;
@@ -42,10 +77,14 @@ public class PlayerController : MonoBehaviour {
 		if (!_canMove)
 			return;
 
-		if (context.started || context.performed)
+		if (context.started || context.performed) {
 			_animator.SetBool("IsMoving", true);
-		else if (context.canceled)
+			PlayFootsteps();
+		}
+		else if (context.canceled) {
 			_animator.SetBool("IsMoving", false);
+			PlayFootsteps(false);
+		}
 	}
 
 	private void SetAnimationDirection() {
@@ -61,8 +100,11 @@ public class PlayerController : MonoBehaviour {
 
 	public void Dash(InputAction.CallbackContext context) {
 		if (_canDash && context.started) {
+			_startedDash = true;
+
 			_dashSpeed = _dashMultiplier;
 			SetInvincibility(true);
+
 			StartCoroutine(WaitThen(_dashDuration, ResetDashState));
 		}
 	}
@@ -76,13 +118,22 @@ public class PlayerController : MonoBehaviour {
 
 	private void ResetDashState() {
 		_dashSpeed = 1f;
-		_canDash = false;
 		SetInvincibility(false);
 
+		_canDash = false;
 		StartCoroutine(WaitThen(_dashCooldown, ResumeDash));
 	}
 
 	private void ResumeDash() => _canDash = true;
 
 	private void SetInvincibility(bool state) => Physics2D.IgnoreLayerCollision(6, 9, state);
+
+	private void PlayFootsteps(bool shouldPlay = true) {
+		_footstepsAudioSource.clip = _footstepsSound;
+
+		if (shouldPlay && !_footstepsAudioSource.isPlaying)
+			_footstepsAudioSource.Play();
+		if (!shouldPlay)
+			_footstepsAudioSource.Stop();
+	}
 }

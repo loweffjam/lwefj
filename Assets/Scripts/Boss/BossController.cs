@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-[RequireComponent(typeof(AudioSource))]
 public class BossController : MonoBehaviour {
 	public enum BossMode {
 		Easy,
@@ -16,16 +15,12 @@ public class BossController : MonoBehaviour {
 	[SerializeField] private GameObject _healthBar;
 	[SerializeField] private BossMode _mode;
 	[SerializeField] private SpawnManager[] _shootPoints;
+	[SerializeField] private GameObject _audioSourceObj;
 
 	private bool _canTakeDamage = true;
 	private int _damageTaken = 0;
 
-	private AudioSource _audioSource;
 	private AudioClip _damageSound;
-
-	private void Awake() {
-		_audioSource = GetComponent<AudioSource>();
-	}
 
 	private void OnEnable() {
 		AudioManager.OnDefineSoundBossTookDamage += (sound) => AudioManager.ChangeSound(out _damageSound, sound);
@@ -57,7 +52,7 @@ public class BossController : MonoBehaviour {
 
 	private void PushBack(Rigidbody2D rigidbody, Transform collided) {
 		rigidbody.AddForce(GetHitDirection(collided.transform) * 10f, ForceMode2D.Impulse);
-		AudioManager.PlaySoundOnce(_audioSource, _damageSound);
+		AudioManager.PlaySoundOnce(_audioSourceObj.GetComponent<AudioSource>(), _damageSound);
 
 		StopCollidedMovement(collided);
 

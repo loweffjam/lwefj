@@ -6,8 +6,8 @@ using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(Rigidbody2D))]
 public class PlayerController : MonoBehaviour {
-	[SerializeField] private AudioSource _sfxAudioSource;
-	[SerializeField] private AudioSource _footstepsAudioSource;
+	[SerializeField] private GameObject _sfxAudioSourceObj;
+	[SerializeField] private GameObject _footstepsAudioSourceObj;
 	[SerializeField] private float _speed = 250f;
 	[SerializeField] private float _dashMultiplier = 10f;
 	[SerializeField] private float _dashDuration = .05f;
@@ -58,14 +58,14 @@ public class PlayerController : MonoBehaviour {
 			StartCoroutine(WaitThen(1f, ResumeMovement));
 
 		if (_playerDashed) {
-			AudioManager.PlaySoundOnce(_sfxAudioSource, _dashSound);
+			AudioManager.PlaySoundOnce(_sfxAudioSourceObj.GetComponent<AudioSource>(), _dashSound);
 			_playerDashed = false;
 		}
 	}
 
 	private void OnCollisionEnter2D(Collision2D collision) {
 		if (collision.gameObject.CompareTag("Bullet"))
-			AudioManager.PlaySoundOnce(_sfxAudioSource, _damageSound);
+			AudioManager.PlaySoundOnce(_sfxAudioSourceObj.GetComponent<AudioSource>(), _damageSound);
 	}
 
 	public void StopMovement() => _canMove = false;
@@ -129,11 +129,12 @@ public class PlayerController : MonoBehaviour {
 	private void SetInvincibility(bool state) => Physics2D.IgnoreLayerCollision(6, 9, state);
 
 	private void PlayFootsteps(bool shouldPlay = true) {
-		_footstepsAudioSource.clip = _footstepsSound;
+		AudioSource footstepsAudioSource = _footstepsAudioSourceObj.GetComponent<AudioSource>();
+		footstepsAudioSource.clip = _footstepsSound;
 
-		if (shouldPlay && !_footstepsAudioSource.isPlaying)
-			_footstepsAudioSource.Play();
+		if (shouldPlay && !footstepsAudioSource.isPlaying)
+			footstepsAudioSource.Play();
 		if (!shouldPlay)
-			_footstepsAudioSource.Stop();
+			footstepsAudioSource.Stop();
 	}
 }
